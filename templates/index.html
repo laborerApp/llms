@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>LocalGPT</title>
+
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <meta name="referrer" content="no-referrer"/>
+    <meta name="referrer" content="unsafe-url"/>
+    <meta name="referrer" content="origin"/>
+    <meta name="referrer" content="no-referrer-when-downgrade"/>
+    <meta name="referrer" content="origin-when-cross-origin"/>
+    <link href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+
+    <style>
+        body {
+            font-family: Helvetica, Arial, sans-serif;
+        }
+
+        code, pre {
+            font-family: monospace;
+        }
+
+        div.container {
+            position: relative;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        div.response {
+            max-height: 90vh;
+            height: 90vh;
+            overflow: auto;
+        }
+
+        div > form {
+            max-height: 10vh;
+            display: flex;
+            flex-direction: row;
+            justify-content: space-between;
+        }
+
+        div.field {
+            width: 90vw;
+            padding: 1rem;
+        }
+
+        div.field > textarea {
+            width: -webkit-fill-available;
+        }
+
+        div.sendbutton {
+            display: flex;
+            justify-content: flex-end;
+            width: 9vw;
+            padding: 1rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="response"></div>
+        <div class="form">
+            <form action="/ask_bot" id="chatform">
+                <div class="field">
+                    <textarea
+                            name="question"
+                            id="question"
+                            placeholder="Your question"
+                    ></textarea>
+                </div>
+                <div class="sendbutton">
+                    <button type="submit">Ask the bot</button>
+                    <button type="button" id="caller">Talk</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</body>
+<script>
+        async function callEvent(event) {
+        event.preventDefault();
+
+        const question = document.querySelector('#question').value;
+        const resultEl = document.querySelector('div.response');
+
+        const response = await fetch('/ask_bot', {
+            method: 'POST',
+            headers: {
+                'Accept': 'application/json, text/html',
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                'question': question
+            })
+        });
+        let context = '';
+        const decoder = new TextDecoder();
+        for await (const chunk of response.body) {
+            const decodedValue = decoder.decode(chunk);
+            context += decodedValue;
+            resultEl.innerHTML = marked.parse(context);
+            resultEl.scrollTo(0, resultEl.scrollHeight);
+        }
+    }
+
+    document.querySelector('#chatform').addEventListener('submit', callEvent);
+    document.querySelector('#question').addEventListener('keypress', submitForm);
+
+    function submitForm(event) {
+        if (event.which === 13) {
+            callEvent(event);
+        }
+
+    }
+
+    function voiceCall(event){
+        event.preventDefault();
+        let SpeechRecognition = window.webkitSpeechRecognition || window.SpeechRecognition;
+        let r = new SpeechRecognition();
+        r.lang ='es-ES';
+
+        r.start()
+        r.onresult = (event) => {
+            let word = event.results[0][0].transcript;
+            document.querySelector('#question').value = word
+        }
+        r.onspeechend = (event) => {
+            r.stop()
+            callEvent(event)
+        }
+    }
+
+    document.querySelector('#caller').addEventListener('click', voiceCall)
+</script>
+</html>
